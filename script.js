@@ -1,62 +1,58 @@
-// Import API key from config.js file
-import { API_KEY } from "./config.js";
+const config = require("./config");
 
-// Get weather data from OpenWeatherMap API
-function getWeather(latitude, longitude) {
-  const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`;
-  fetch(apiUrl)
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      } else {
-        throw new Error("Unable to retrieve weather data.");
-      }
-    })
-    .then((data) => {
-      displayWeather(data);
-    })
-    .catch((error) => {
-      console.error(error);
-    });
+const api_key = config.api_key;
+let lat;
+let lon;
+
+const weather_info = document.getElementById("weather-info");
+const city_name = document.getElementById("city-name");
+
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(getWeather, showError);
+  } else {
+    weather_info.innerText = "Geolocation is not supported by this browser.";
+  }
 }
 
-// Display weather data in HTML
-function displayWeather(data) {
-  const cityName = data.name;
-  const weatherDescription = data.weather[0].description;
-  const temperature = data.main.temp;
-  const humidity = data.main.humidity;
-  const windSpeed = data.wind.speed;
-  const weatherIconUrl = `http://openweathermap.org/img/w/${data.weather[0].icon}.png`;
+async function getWeather(position) {
+  lat = position.coords.latitude;
+  lon = position.coords.longitude;
 
-  const cityNameElement = document.getElementById("city-name");
-  cityNameElement.innerHTML = cityName;
-
-  const weatherDescriptionElement = document.getElementById(
-    "weather-description"
-  );
-  weatherDescriptionElement.innerHTML = weatherDescription;
-
-  const temperatureElement = document.getElementById("temperature");
-  temperatureElement.innerHTML = `${temperature}°C`;
-
-  const humidityElement = document.getElementById("humidity");
-  humidityElement.innerHTML = `Humidity: ${humidity}%`;
-
-  const windSpeedElement = document.getElementById("wind-speed");
-  windSpeedElement.innerHTML = `Wind: ${windSpeed} m/s`;
-
-  const weatherIconElement = document.getElementById("weather-icon");
-  weatherIconElement.src = weatherIconUrl;
+  try {
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${api_key}&units=metric`
+    );
+    const data = await response.json();
+    const weather = data.weather[0];
+    weather_info.innerHTML = `
+      Weather: ${weather.main}<br>
+      Description: ${weather.description}<br>
+      Temperature: ${Math.round(data.main.temp)}&deg;C<br>
+      Humidity: ${data.main.humidity}%<br>
+      Wind Speed: ${Math.round(data.wind.speed)} m/s`;
+    city_name.innerText = data.name;
+  } catch (error) {
+    console.log(error);
+    weather_info.innerText = "Unable to retrieve weather data";
+  }
 }
 
-// Get user's location and display weather data
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition((position) => {
-    const latitude = position.coords.latitude;
-    const longitude = position.coords.longitude;
-    getWeather(latitude, longitude);
-  });
-} else {
-  console.error("Geolocation is not supported by this browser.");
+function showError(error) {
+  switch (error.code) {
+    case error.PERMISSION_DENIED:
+      weather_info.innerText = "User denied the request for Geolocation.";
+      break;
+    case error.POSITION_UNAVAILABLE:
+      weather_info.innerText = "Location information is unavailable.";
+      break;
+    case error.TIMEOUT:
+      weather_info.innerText = "The request to get user location timed out.";
+      break;
+    case error.UNKNOWN_ERROR:
+      weather_info.innerText = "An unknown error occurred.";
+      break;
+  }
 }
+
+getLocation();
